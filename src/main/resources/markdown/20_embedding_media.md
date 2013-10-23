@@ -6,7 +6,7 @@
 ![My face](pasi_niemi_2013.jpg)
 ```
 
- * Or embed html if you need more control with e.g. classes and id's for css
+ * Or embed html if you need more control with e.g. classes and ids for css
  * For videos you need to embed html
 
 ```html
