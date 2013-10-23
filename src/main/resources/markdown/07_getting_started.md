@@ -1,6 +1,6 @@
 # Getting started (2/2) #
 
- * Add you slides in ```src/main/resources/markdown```
+ * Add your slides in ```src/main/resources/markdown```
  * JavaFX needs to be on your JDK classpath
     * You may need to run ```mvn com.zenjava:javafx-maven-plugin:2.0:fix-classpath```
     * One time only operation per JDK

@@ -1,6 +1,6 @@
 # Embedding media #
 
- * You can embed images with a simlpe markdown element
+ * You can embed images with a simple markdown element
 
 ```bash
 ![My face](pasi_niemi_2013.jpg)
