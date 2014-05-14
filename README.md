@@ -75,11 +75,13 @@ java -Dslides=slides-small -Dhttpport=9999 -Dhttprunpasswords=.passwords -Dnocac
 
 ## Using ##
 
-For now the easiest way of using this is to fork this repo, create your own css and background and write your own
-markdown slides. The transitions aren't that complex so even those are potential targets for change.
-
-The relative directory for referring to stuff from html is ```src/main/resources/html``` so that is where your images
-and videos go.
+The easiest way of using this is to use the [dope archetype](https://github.com/NitorCreations/dope-archetype). See usage instructions there.
+Markdown slides that get rendered into the presentation go into ```src/main/resources/markdown```. Files ending with ```.md``` are
+considered sources for slides and files ending with ```.md.notes``` are considered to be notes to a slide with the matching name.
+Slide notes show up in the web interface for running the presentation. The relative directory for referring to stuff from html is
+```src/main/resources/html``` so that is where your images and videos go. Markdown files are added to the presentation in alphabetical
+order. Each file may contain multiple slides by separating them with ```<!--break-->``` to add a new slide and ```<!--break:notes-->```
+to add notes to the previous slide.
 
 After that you just build your jar as described below and run it as described above.
 
@@ -88,7 +90,7 @@ After that you just build your jar as described below and run it as described ab
 The gesture definitions are in ```src/main/resources/gestureset```. If you would like to make your own, you
 can record them with the [Wiigee Demo GUI](http://www.wiigee.org/download/download.html), put them in that
 directory and add them to the Java code. They need to be added to the loading in ```initWiimote()``` and
-then the event processing needs to be added to ```gestureReceived(GestureEvent event)```. Both are in ```PresentationController```
+then the event processing needs to be added to ```gestureReceived(GestureEvent event)```. Both are in ```BaseController```
 class.
 
 ## HTTP server ##
