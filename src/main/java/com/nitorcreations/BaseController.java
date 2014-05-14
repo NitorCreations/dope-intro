@@ -18,22 +18,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import javafx.animation.Interpolator;
-import javafx.animation.ParallelTransition;
-import javafx.animation.ParallelTransitionBuilder;
-import javafx.animation.RotateTransition;
-import javafx.animation.RotateTransitionBuilder;
-import javafx.animation.ScaleTransition;
-import javafx.animation.ScaleTransitionBuilder;
-import javafx.animation.SequentialTransition;
-import javafx.animation.SequentialTransitionBuilder;
-import javafx.animation.Transition;
-import javafx.animation.TranslateTransition;
-import javafx.animation.TranslateTransitionBuilder;
 import javafx.application.Platform;
-import javafx.event.ActionEvent;
 import javafx.event.EventHandler;
-import javafx.geometry.Bounds;
 import javafx.geometry.Rectangle2D;
 import javafx.scene.Group;
 import javafx.scene.image.Image;
@@ -49,7 +35,6 @@ import javafx.scene.shape.MoveTo;
 import javafx.scene.shape.Path;
 import javafx.scene.shape.StrokeLineCap;
 import javafx.stage.Screen;
-import javafx.util.Duration;
 
 import org.wiigee.control.WiimoteWiigee;
 import org.wiigee.device.Wiimote;
@@ -61,47 +46,35 @@ import org.wiigee.event.GestureListener;
 import org.wiigee.event.InfraredEvent;
 import org.wiigee.event.InfraredListener;
 
-@SuppressWarnings("restriction")
-public class PresentationController implements EventHandler<KeyEvent>, 
-ButtonListener, GestureListener, InfraredListener{
+public abstract class BaseController implements EventHandler<KeyEvent>, ButtonListener, GestureListener, InfraredListener{
 	static Map<String, Set<String>> jarEntryCache = new HashMap<String, Set<String>>();
 
 	ImageView[] slides;
-	private Interpolator SLOW = new SlowingInterpolator();
-	private Interpolator ACCELERATE = new AccelerateAndBumpInterpolator();
-	private int index=-1;
+	protected int index=0;
 	public static double SCALE=8;
-	private double OUT_SCALE=1;
-	private double screenWidth;
-	private double screenHeight;
-	private final Duration outDuration=Duration.seconds(2);
-	private final Duration inDuration=Duration.seconds(2);
-	private final Duration moveDuration=Duration.seconds(0.7);
+	protected double screenWidth;
+	protected double screenHeight;
 	public static final double SLIDE_WIDTH=200; 
 	public static final double SLIDE_HEIGHT=150; 
 
-	private ImageView prevSlide=null;
-	private AnchorPane rootPane;
-	private Group slideGroup;
-	private boolean videoPlayed = false;
-	private boolean started = false;
-	private SequentialTransition start=null;
-	private PresentationHttpServer server;
-	private AtomicBoolean a_pressed = new AtomicBoolean(false);
-	private Path wiiTrail = new Path();
-	private Wiimote wiimote = null;
+	protected ImageView prevSlide=null;
+	protected AnchorPane rootPane;
+	protected Group slideGroup;
+	protected boolean videoPlayed = false;
+	protected PresentationHttpServer server;
+	protected AtomicBoolean a_pressed = new AtomicBoolean(false);
+	protected Path wiiTrail = new Path();
+	protected Wiimote wiimote = null;
+	protected boolean hasTitle = false;
+	protected int[][] coordinates;
 
-	private int[][] coordinates;
+	protected double[] middle = new double[] {0, 0};
 
-	private double[] middle = new double[] {0, 0};
+	protected double[] pointer = new double[] {0, 0};
 
-	private double[] pointer = new double[] {0, 0};
+	protected double lastdeltaX=0;
 
-	private double lastdeltaX=0;
-
-	private double lastdeltaY=0;
-
-	private int startSlide=0;
+	protected double lastdeltaY=0;
 
 	public void initialize(AnchorPane root) throws NumberFormatException, IOException, NoSuchAlgorithmException {
 		rootPane = root;
@@ -114,12 +87,14 @@ ButtonListener, GestureListener, InfraredListener{
 		}
 		List<String> slideNames = new ArrayList<String>(Arrays.asList(Utils.getResourceListing(slideDir)));
 		Collections.sort(slideNames);
-		boolean hasTitle = false;
 		if (slideNames.indexOf("title.png") > -1) {
 			slideNames.remove(slideNames.indexOf("title.png"));
 			hasTitle = true;
 		}
 		ArrayList<ImageView> slideList = new ArrayList<>();
+		Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
+		screenWidth = primaryScreenBounds.getMaxX();
+		screenHeight = primaryScreenBounds.getMaxY();
 		for (String next : slideNames) {
 			if (next.isEmpty() || next.equals("/")) continue;
 			if (next.endsWith(".video")) {
@@ -149,13 +124,11 @@ ButtonListener, GestureListener, InfraredListener{
 				nextView.setFitWidth(SLIDE_WIDTH);
 				nextView.setFitHeight(SLIDE_HEIGHT);
 				nextView.setPreserveRatio(true);
-				nextView.setVisible(true);
 				nextView.setFocusTraversable(false);
 				nextView.setLayoutX(screenWidth/2);
 				nextView.setLayoutX(screenHeight/2);
 				nextView.setImage(new Image(slideDir + next));
 				slideList.add(nextView);
-				nextView.setRotate(Math.random() * 360);
 			}
 		}
 		if (hasTitle) {
@@ -163,22 +136,15 @@ ButtonListener, GestureListener, InfraredListener{
 			nextView.setFitWidth(SLIDE_WIDTH);
 			nextView.setFitHeight(SLIDE_HEIGHT);
 			nextView.setPreserveRatio(true);
-			nextView.setVisible(true);
 			nextView.setFocusTraversable(false);
 			nextView.setLayoutX(screenWidth/2);
 			nextView.setLayoutX(screenHeight/2);
 			nextView.setImage(new Image(slideDir + "title.png"));
 			slideList.add(0, nextView);
-			startSlide=1;
 		}
 		slides = (ImageView[]) slideList.toArray(new ImageView[slideList.size()]);
 		slideGroup = new Group(slides);
 		slideGroup.getChildren().get(0).toFront();
-		int paneSections = new Double(Math.ceil(Math.sqrt(slides.length))).intValue();
-		rootPane.setPrefHeight(SlideLocation.SLIDE_SLOT_SIZE * paneSections);
-		rootPane.setPrefWidth(SlideLocation.SLIDE_SLOT_SIZE * paneSections);
-		rootPane.setMinHeight(SlideLocation.SLIDE_SLOT_SIZE * paneSections);
-		rootPane.setMinWidth(SlideLocation.SLIDE_SLOT_SIZE * paneSections);
 		rootPane.setLayoutX(0);
 		rootPane.setLayoutY(0);
 		rootPane.setVisible(true);
@@ -197,60 +163,17 @@ ButtonListener, GestureListener, InfraredListener{
 					wiiTrail.getElements().add(new LineTo(x, y));
 				}
 				wiiTrail.toFront();
-				
 			}
 		});
 
-		Rectangle2D primaryScreenBounds = Screen.getPrimary().getVisualBounds();
-		screenWidth = primaryScreenBounds.getMaxX();
-		screenHeight = primaryScreenBounds.getMaxY();
 		SCALE = screenWidth / SLIDE_WIDTH;
-		OUT_SCALE = screenWidth / rootPane.getPrefWidth();
-		rootPane.setStyle("-fx-background-color: #a0a0a0;");
-
-		ArrayList<SlideLocation> locations = new ArrayList<>();
-		for (int i=0; i<paneSections;i++) {
-			for (int j=0; j<paneSections; j++) {
-				locations.add(new SlideLocation(i, j));
-			}
-		}
-		ArrayList<Transition> spreadTransitions = new ArrayList<>();
+		rootPane.setStyle("-fx-background-color: #ffffff;");
 		for (ImageView next : slides) {
 			next.setLayoutX(screenWidth/2 - SLIDE_WIDTH/2);
 			next.setLayoutY(screenHeight/2 -SLIDE_HEIGHT/2);
-			SlideLocation loc = locations.remove((int)(Math.random() * (double)locations.size()));
-			double speedCoeff = 0.9 + (Math.random()/5);
-			double duration = Math.sqrt(loc.coordX * loc.coordX + loc.coordY * loc.coordY) / (350 * speedCoeff);
-			TranslateTransition slideMove = TranslateTransitionBuilder.create()
-					.node(next).byX(loc.coordX-rootPane.getPrefWidth()/2)
-					.byY(loc.coordY-rootPane.getPrefWidth()/2)
-					.duration(Duration.seconds(duration))
-					.interpolator(SLOW).build();
-			RotateTransition slideRotate = RotateTransitionBuilder.create()
-					.node(next).byAngle((Math.random() * 360) - 180).interpolator(SLOW)
-					.duration(Duration.seconds(duration)).build();
-			spreadTransitions.add(ParallelTransitionBuilder.create().children(slideMove, slideRotate).build());
 		}
-		rootPane.setScaleX(10);
-		rootPane.setScaleY(10);
 
-		ParallelTransition cardsSpread = ParallelTransitionBuilder.create().children(spreadTransitions).build();
-		ScaleTransition cardsDrop = ScaleTransitionBuilder.create().node(rootPane)
-				.toX(OUT_SCALE).toY(OUT_SCALE).duration(outDuration).interpolator(ACCELERATE).build();
-		start = SequentialTransitionBuilder.create().children(cardsDrop, cardsSpread)
-				.onFinished(new EventHandler<ActionEvent>() {
-
-					@Override
-					public void handle(ActionEvent arg0) {
-						index=startSlide;
-						showSlide(slides[index], false);
-					}
-				})
-				.build();
-		if (hasTitle) {
-			showSlide(0, true);
-		}
-		if (System.getProperty("nowiimote") == null) {
+		if (System.getProperty("wiimote") != null) {
 			initWiimote();
 		}
 		if (System.getProperty("httpport") != null) {
@@ -272,49 +195,43 @@ ButtonListener, GestureListener, InfraredListener{
 	}
 
 	public synchronized void handle(KeyCode code) {
-		if (!started) {
-			started = true;
-			tryVibrate(150);
-			start.play();
-		} else {
-			boolean quick=false;
-			switch (code) {
-			case LEFT:
-				index--;
-				break;
-			case RIGHT:
-				index++;
-				break;
-			case UP:
-				index++;
-				quick=true;
-				break;
-			case DOWN:
-				index--;
-				quick=true;
-				break;
-			case A:
-				index=0;
-				break;
-			case E:
-				index = slides.length -1;
-				break;
-			default:
-				return;
-			}
-			if (index < 0) {
-				index = 0;
-				tryVibrate(1000);
-				return;
-			} else if (index >= slides.length) {
-				index = slides.length - 1;
-				tryVibrate(1500);
-				return;
-			} else {
-				tryVibrate(150);
-			}
-			showSlide(slides[index], quick);
+		boolean quick=false;
+		switch (code) {
+		case LEFT:
+			index--;
+			break;
+		case RIGHT:
+			index++;
+			break;
+		case UP:
+			index++;
+			quick=true;
+			break;
+		case DOWN:
+			index--;
+			quick=true;
+			break;
+		case A:
+			index=0;
+			break;
+		case E:
+			index = slides.length -1;
+			break;
+		default:
+			return;
 		}
+		if (index < 0) {
+			index = 0;
+			tryVibrate(1000);
+			return;
+		} else if (index >= slides.length) {
+			index = slides.length - 1;
+			tryVibrate(1500);
+			return;
+		} else {
+			tryVibrate(150);
+		}
+		showSlide(slides[index], quick);
 	}
 	public synchronized int slideCount() {
 		return slides.length;
@@ -322,11 +239,11 @@ ButtonListener, GestureListener, InfraredListener{
 	public synchronized int curentSlide() {
 		return index;
 	}
-	
+
 	public synchronized void showSlide(int index) {
 		showSlide(index, false);
 	}
-	
+
 	public synchronized void showSlide(final int index, final boolean quick) {
 		if (index >= slides.length || index < 0) throw new ArrayIndexOutOfBoundsException(index);
 		this.index = index;
@@ -337,127 +254,9 @@ ButtonListener, GestureListener, InfraredListener{
 			}
 		});
 	}
-	
-	
-	private void showSlide(final ImageView slide, boolean quick) {
-		if (prevSlide != null && prevSlide.getProperties().get("video") != null && !videoPlayed) {
-			videoPlayed = true;
-			double left = Double.valueOf((String)prevSlide.getProperties().get("left"));
-			double top = Double.valueOf((String)prevSlide.getProperties().get("top"));
-			double width = Double.valueOf((String)prevSlide.getProperties().get("width"));
-			double height = Double.valueOf((String)prevSlide.getProperties().get("height"));
-			double zoomTo = screenWidth / (SLIDE_WIDTH * (width) / screenWidth);
-			double moveX = ((screenWidth/2) - (left + (width/2))) * zoomTo / SCALE;
-			double moveY = ((screenHeight/2) - (top + (height/2))) * zoomTo / SCALE;
-			TranslateTransition move = TranslateTransitionBuilder.create()
-					.node(rootPane)
-					.byX(moveX)
-					.byY(moveY)
-					.duration(Duration.seconds(1))
-					.build();
-			ScaleTransition zoom = ScaleTransitionBuilder.create()
-					.node(rootPane)
-					.toX(zoomTo)
-					.toY(zoomTo)
-					.duration(Duration.seconds(1))
-					.build();
-			SequentialTransitionBuilder.create().children(move, zoom).onFinished(new EventHandler<ActionEvent>() {
-				@Override
-				public void handle(ActionEvent arg0) {
-					Utils.runVideo((File)prevSlide.getProperties().get("video"));
-				}
-			}).build().play();
-			index--;
-		} else {
-			if (!quick || slide.getProperties().get("video") != null) {
-				Duration outD;
-				if (rootPane.getScaleX() > OUT_SCALE) {
-					outD = outDuration;
-				} else {
-					outD = Duration.millis(100);
-				}
-				ScaleTransition scaleOut = ScaleTransitionBuilder.create().node(rootPane)
-						.toX(OUT_SCALE).toY(OUT_SCALE)
-						.interpolator(Interpolator.EASE_IN)
-						.duration(outD).build();
-				TranslateTransition reset = TranslateTransitionBuilder.create()
-						.node(rootPane)
-						.duration(outD)
-						.interpolator(Interpolator.EASE_IN)
-						.toX(0)
-						.toY(0)
-						.build();
-				Transition out;
-				if (prevSlide != null) {
-					RotateTransition outRot = RotateTransitionBuilder.create()
-							.node(rootPane)
-							.toAngle(0)
-							.duration(outD)
-							.interpolator(Interpolator.EASE_BOTH)
-							.build();
-					out = ParallelTransitionBuilder.create().children(scaleOut, outRot, reset)
-							.build();
-				} else {
-					out = ParallelTransitionBuilder.create().children(scaleOut, reset)
-							.build();
-				}
 
-				out.setOnFinished(new EventHandler<ActionEvent>() {
 
-					public void handle(ActionEvent t) {
-						Bounds point = slide.localToScene(slide.getBoundsInLocal());
-						double slideCenterX = (point.getMinX() + point.getMaxX())/2;   
-						double slideCenterY = (point.getMinY() + point.getMaxY())/2;
-
-						TranslateTransition move = TranslateTransitionBuilder.create()
-								.node(slideGroup)
-								.byX(((screenWidth / 2) - slideCenterX) / OUT_SCALE)
-								.byY(((screenHeight / 2) - slideCenterY) / OUT_SCALE)
-								.duration(moveDuration)
-								.interpolator(Interpolator.EASE_BOTH)
-								.build();
-
-						ScaleTransition scale = ScaleTransitionBuilder.create()
-								.node(rootPane)
-								.toX(SCALE).toY(SCALE)
-								.duration(inDuration)
-								.interpolator(Interpolator.EASE_OUT)
-								.build();
-
-						RotateTransition inRot = RotateTransitionBuilder.create()
-								.node(rootPane)
-								.toAngle(getRotation(slide.getRotate()))
-								.duration(inDuration)
-								.interpolator(Interpolator.EASE_OUT)
-								.build();
-
-						ParallelTransition scaleIn = ParallelTransitionBuilder.create()
-								.children(scale, inRot).build();
-						SequentialTransition in = SequentialTransitionBuilder.create()
-								.children(move, scaleIn)
-								.onFinished(new FinishAnimator(slide, new EventHandler<ActionEvent>() {
-									@Override
-									public void handle(ActionEvent arg0) {
-										tryVibrate(200);
-									}
-								})).build();
-						in.play();
-					}
-				});
-				out.play();
-			} else {
-				new FinishAnimator(slide, new EventHandler<ActionEvent>() {
-					@Override
-					public void handle(ActionEvent arg0) {
-						tryVibrate(200);
-					}
-				}).handle(null);
-			}
-			prevSlide = slide;
-			videoPlayed = false;
-		} 
-	}
-
+	public abstract void showSlide(final ImageView slide, boolean quick);
 
 	public static double getRotation(double angle) {
 		if (angle > 180) {
@@ -467,21 +266,6 @@ ButtonListener, GestureListener, InfraredListener{
 		}
 	}
 
-	private class SlowingInterpolator extends Interpolator {
-
-		@Override
-		protected double curve(double d) {
-			return 1-((1-d)*(1-d));
-		}
-
-	}
-	private class AccelerateAndBumpInterpolator extends Interpolator  {
-
-		@Override
-		protected double curve(double d) {
-			return d<0.9 ? (d * d)+(0.21111*d) : 10 * (d-0.95) * (d-0.95) + 0.975;
-		}
-	}
 
 	private void initWiimote() {
 		try {
@@ -620,7 +404,7 @@ ButtonListener, GestureListener, InfraredListener{
 		}
 		updateRobotMouse();
 	}
-	
+
 	private void updateRobotMouse() {
 		try {
 			double x = pointer[0]* screenWidth/1024;
@@ -638,7 +422,7 @@ ButtonListener, GestureListener, InfraredListener{
 		}
 	}
 
-	private void tryVibrate(long millis) {
+	protected void tryVibrate(long millis) {
 		if (wiimote != null) {
 			try {
 				wiimote.vibrateForTime(millis);
@@ -654,4 +438,5 @@ ButtonListener, GestureListener, InfraredListener{
 			server.quit();
 		}
 	}
+
 }

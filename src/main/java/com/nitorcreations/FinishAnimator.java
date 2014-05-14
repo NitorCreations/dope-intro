@@ -10,7 +10,6 @@ import javafx.geometry.Bounds;
 import javafx.scene.image.ImageView;
 import javafx.util.Duration;
 
-@SuppressWarnings("restriction")
 public class FinishAnimator implements EventHandler<ActionEvent> {
 
 	private final ImageView slide;
@@ -23,17 +22,17 @@ public class FinishAnimator implements EventHandler<ActionEvent> {
 	public void handle(ActionEvent t) {
 		double parentRot = slide.getParent().getParent().getRotate();
 		double parentScale = slide.getParent().getParent().getScaleX(); 
-		if (parentScale != PresentationController.SCALE) {
+		if (parentScale != BumpAndFadeController.SCALE) {
 			ScaleTransitionBuilder.create()
 			        .node(slide.getParent().getParent())
-			        .toX(PresentationController.SCALE)
-			        .toY(PresentationController.SCALE)
+			        .toX(BumpAndFadeController.SCALE)
+			        .toY(BumpAndFadeController.SCALE)
 			        .duration(Duration.millis(600))
 			        .onFinished(this)
 			        .build().play();
-		} else if (parentRot != PresentationController.getRotation(slide.getRotate())) {
+		} else if (parentRot != BumpAndFadeController.getRotation(slide.getRotate())) {
 			RotateTransitionBuilder.create()
-					.toAngle(PresentationController.getRotation(slide.getRotate()))
+					.toAngle(BumpAndFadeController.getRotation(slide.getRotate()))
 					.node(slide.getParent().getParent())
 					.onFinished(this)
 					.duration(Duration.millis(600)).build().play();

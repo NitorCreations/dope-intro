@@ -14,7 +14,7 @@ import com.sun.net.httpserver.HttpServer;
 public class PresentationHttpServer {
 	private HttpServer server;
 
-	public PresentationHttpServer(int port, PresentationController controller) throws IOException {
+	public PresentationHttpServer(int port, BaseController controller) throws IOException {
 		InetSocketAddress addr = new InetSocketAddress(port);
 		server = HttpServer.create(addr, 0);
 

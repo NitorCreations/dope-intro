@@ -83,15 +83,15 @@ public class Utils {
 		JarFile jar = null;
 		try {
 			File jarFile = new File(URLDecoder.decode(jarPath, "UTF-8"));
-			if (PresentationController.jarEntryCache.containsKey(jarFile.getAbsolutePath())) {
-				return PresentationController.jarEntryCache.get(jarFile.getAbsolutePath());
+			if (BumpAndFadeController.jarEntryCache.containsKey(jarFile.getAbsolutePath())) {
+				return BumpAndFadeController.jarEntryCache.get(jarFile.getAbsolutePath());
 			} else {
 				jar = new JarFile(jarFile);
 				Enumeration<JarEntry> entries = jar.entries(); 
 				while(entries.hasMoreElements()) {
 					result.add(entries.nextElement().getName());
 				}
-				PresentationController.jarEntryCache.put(jarFile.getAbsolutePath(), result);
+				BumpAndFadeController.jarEntryCache.put(jarFile.getAbsolutePath(), result);
 			}
 		} catch (UnsupportedEncodingException e1) {
 			e1.printStackTrace();

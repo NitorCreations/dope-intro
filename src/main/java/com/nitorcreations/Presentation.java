@@ -8,14 +8,15 @@ import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.stage.WindowEvent;
 
-@SuppressWarnings("restriction")
 public class Presentation extends Application{
-    
     @Override
     public void start(Stage stage) throws Exception {
     	AnchorPane root = new AnchorPane();
     	Scene scene = new Scene(root);
-    	final PresentationController controller = new PresentationController();
+    	@SuppressWarnings("unchecked")
+		Class<? extends BaseController> controllerClass = 
+    			(Class<? extends BaseController>) Class.forName(System.getProperty("controller", "com.nitorcreations.BumpAndFadeController"));
+    	final BaseController controller = controllerClass.newInstance();
     	scene.setOnKeyPressed(controller);
     	controller.initialize(root);
         scene.setFill(Color.web("#a0a0a0"));

@@ -55,13 +55,18 @@ Unfortunately on the Raspberry Pi there is currently no way of controlling the p
 On the raspberry Pi this requires using the smaller images to fit into memory:
 
 ```
-java -Dslides=slides-small -jar jfx-presentation-shanghai-1.0-jfx.jar
+java -Dslides=slides-small -Dwiimote=true -jar jfx-presentation-shanghai-1.0-jfx.jar
 ```
 
 If you don't want to use the Wiimote:
 
 ```
-java -Dslides=slides-small -Dnowiimote=true -jar jfx-presentation-shanghai-1.0-jfx.jar
+java -Dslides=slides-small -jar jfx-presentation-shanghai-1.0-jfx.jar
+```
+
+The default slide transition is bump-and-fade, so if you want the use the built-in spinning transtion, you can use
+```
+java -Dcontroller=foo.bar.SpinController -jar jfx-presentation-shanghai-1.0-jfx.jar
 ```
 
 Running the http server requires specifying a port and on the Raspberry Pi you don't want to
